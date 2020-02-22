@@ -24,8 +24,8 @@ export default new Meta({
 	</>,
 
 	supportedPatches: {
-		from: '5.0',
-		to: '5.01',
+		from: '5.1',
+		to: '5.1',
 	},
 
 	contributors: [
@@ -33,6 +33,39 @@ export default new Meta({
 	],
 
 	changelog: [{
+		date: new Date('2019-11-12'),
+		Changes: () => <>
+			Updated SAM support for patch 5.1 along with some user requested changes
+			<ul>
+				<li> Shoha tracking has been added along with visual </li>
+				<li> Meikyo visual has been changed to show just the GCDs done under it, minus iaijutsu </li>
+				<li> Changed data for patch 5.1 </li>
+			</ul>
+		</>,
+		contributors: [CONTRIBUTORS.RYAN],
+	}, {
+		date: new Date('2019-9-16'),
+		Changes: () => <>
+			Updated SAM support based on feedback/feature requests.
+			<ul>
+				<li> AOE checker has been added. </li>
+				<li> Meikyo now works off core so there's a nice visual </li>
+				<li> Updated suggestion feedback to all minor for third eye proc spending due to small impact in the grand scheme of things </li>
+			</ul>
+		</>,
+		contributors: [CONTRIBUTORS.RYAN],
+	}, {
+		date: new Date('2019-8-19'),
+		Changes: () => <>
+			5.05 SAM support plus some logic changes, including:&nbsp;
+			<ul>
+				<li>OGCD drift checks moved to core instead of SAM-only logic</li>
+				<li>Removal of Sen overwritten allowance and returning of Hagakure</li>
+				<li>Removal of Missed/Drift seconds suggestions</li>
+			</ul>
+		</>,
+		contributors: [CONTRIBUTORS.RYAN],
+	}, {
 		date: new Date('2019-7-29'),
 		Changes: () => <> Fixed bugs with combos and a few typos </>,
 		contributors: [CONTRIBUTORS.RYAN],

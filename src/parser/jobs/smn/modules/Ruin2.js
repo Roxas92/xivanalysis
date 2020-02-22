@@ -8,13 +8,6 @@ import Module from 'parser/core/Module'
 import {TieredSuggestion, SEVERITY} from 'parser/core/modules/Suggestions'
 import PETS from 'data/PETS'
 
-// Constants
-// Unlike HW, don't need to worry about mana drain too much. It's just flat pot.
-// TODO: Ok where is this gcd metadata gonna be stored at the end of the day?
-//       ACTIONS is looking more and more tasty
-const RUIN2_POT = 100
-const RUIN3_POT = 120
-
 // Severity, in no. casts
 const BAD_CAST_SEVERITY = {
 	1: SEVERITY.MINOR,
@@ -34,11 +27,12 @@ export default class Ruin2 extends Module {
 
 	// Events
 	// TODO: Should probably mark bad R2s on the timeline in some capacity
-	_all = []
-	_warnings = []
-	_issues = []
+	_weaved = []
+	_moveOnly = []
+	_worthless = []
 
 	// Tracking etc
+	_lastOgcd = null
 	_lastGcd = null
 	_ogcdUsed = false
 	_pos = {}
@@ -59,6 +53,7 @@ export default class Ruin2 extends Module {
 			: undefined
 
 		if (!action.onGcd) {
+			this._lastOgcd = event
 			this._ogcdUsed = true
 			return
 		}
@@ -67,22 +62,22 @@ export default class Ruin2 extends Module {
 		const invulnTime = this.invuln.getUntargetableUptime(
 			'all',
 			event.timestamp,
-			event.timestamp + this.gcd.getEstimate()
+			event.timestamp + this.gcd.getEstimate(),
 		)
 
-		// TODO: GCD metadata should be in a module?
-		// If there was no oGCD cast between the R2 and now, mark an issue
 		if (
 			action.onGcd &&
-			lastGcdActionId === ACTIONS.RUIN_II.id &&
-			!this._ogcdUsed &&
+			lastGcdActionId === ACTIONS.SMN_RUIN_II.id &&
 			invulnTime === 0
 		) {
-			// If they at least moved, only raise a warning
-			if (this.movedSinceLastGcd()) {
-				this._warnings.push(event)
+			if (this._ogcdUsed) {
+				// This was at least used for a weave, even though you should have enough other instants to not need R2s in general.
+				this._weaved.push(this._lastGcd)
+			} else if (this.movedSinceLastGcd()) {
+				// Separate count if they at least moved
+				this._moveOnly.push(this._lastGcd)
 			} else {
-				this._issues.push(event)
+				this._worthless.push(this._lastGcd)
 			}
 		}
 
@@ -91,8 +86,7 @@ export default class Ruin2 extends Module {
 		this._pos = this.combatants.selected.resources
 
 		// If this is an R2 cast, track it
-		if (action.id === ACTIONS.RUIN_II.id) {
-			this._all.push(event)
+		if (action.id === ACTIONS.SMN_RUIN_II.id) {
 			// Explicitly setting the ogcd tracker to true while bahamut is out,
 			// we don't want to fault people for using R2 for WWs during bahamut.
 			this._ogcdUsed = (this.pets.getCurrentPet() === PETS.DEMI_BAHAMUT.id)
@@ -108,35 +102,22 @@ export default class Ruin2 extends Module {
 	}
 
 	_onComplete() {
-		const potLossPerR2 = RUIN3_POT - RUIN2_POT
-		const issues = this._issues.length
-		const warnings = this._warnings.length
+		const wastedCount = this._worthless.length
+		const moveOnlyCount = this._moveOnly.length
+		const weavedCount = this._weaved.length
+		const totalCount = wastedCount + moveOnlyCount + weavedCount
 
 		this.suggestions.add(new TieredSuggestion({
-			icon: ACTIONS.RUIN_III.icon,
+			icon: ACTIONS.SMN_RUIN_II.icon,
 			tiers: BAD_CAST_SEVERITY,
-			value: issues,
-			content: <Trans id="smn.ruin-ii.suggestions.issues.content">
-				<ActionLink {...ACTIONS.RUIN_II}/> is a DPS loss when not used to weave oGCDs or proc <ActionLink {...ACTIONS.WYRMWAVE}/>s. Prioritise casting <ActionLink {...ACTIONS.RUIN_III}/>.
+			value: totalCount,
+			content: <Trans id="smn.ruin-ii.suggestions.avoid.content">
+				Avoid casting <ActionLink {...ACTIONS.SMN_RUIN_II}/> if possible.
+				Prefer using your other instant casts for movement and weaving or Ruin III when movement and weaving are not required.
 			</Trans>,
-			why: <Trans id="smn.ruin-ii.suggestions.issues.why">
-				{issues * potLossPerR2} potency lost to {issues} unnecessary Ruin II
-				<Plural value={issues} one="cast" other="casts"/>.
+			why: <Trans id="smn.ruin-ii.suggestions.avoid.why">
+				{totalCount} Ruin II <Plural value={totalCount} one="cast" other="casts"/> were performed.
 			</Trans>,
-		}))
-
-		this.suggestions.add(new TieredSuggestion({
-			icon: ACTIONS.RUIN_II.icon,
-			content: <Trans id="smn.ruin-ii.suggestions.warnings.content">
-				Unless significant movement is required, avoid using <ActionLink {...ACTIONS.RUIN_II}/> for movement. Most position adjustments can be performed with slidecasting and the additional mobility available during <ActionLink {...ACTIONS.DREADWYRM_TRANCE}/>.
-			</Trans>,
-			why: <Trans id="smn.ruin-ii.suggestions.warnings.why">
-				{warnings * potLossPerR2} potency lost to {warnings} Ruin II
-				<Plural value={warnings} one="cast" other="casts"/>
-				used only to move.
-			</Trans>,
-			tiers: BAD_CAST_SEVERITY,
-			value: warnings,
 		}))
 	}
 }

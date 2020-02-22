@@ -3,8 +3,6 @@ import {Trans} from '@lingui/react'
 import math from 'mathjsCustom'
 import React from 'react'
 
-import {getDataBy} from 'data'
-import ACTIONS from 'data/ACTIONS'
 import Module from 'parser/core/Module'
 import {Group, Item} from './Timeline'
 import {SimpleStatistic} from './Statistics'
@@ -28,6 +26,7 @@ export default class GlobalCooldown extends Module {
 		// We need this to normalise before us
 		'precastAction', // eslint-disable-line @xivanalysis/no-unused-dependencies
 		'castTime', // eslint-disable-line @xivanalysis/no-unused-dependencies
+		'data',
 		'downtime',
 		'speedmod',
 		'statistics',
@@ -46,6 +45,7 @@ export default class GlobalCooldown extends Module {
 		event: null,
 	}
 	gcds = []
+	gcdGroupId  = 'gcd'
 
 	constructor(...args) {
 		super(...args)
@@ -60,7 +60,7 @@ export default class GlobalCooldown extends Module {
 
 			// Only care about player GCDs
 			if (!this.parser.byPlayer(event) || !event.ability) { continue }
-			const action = getDataBy(ACTIONS, 'id', event.ability.guid)
+			const action = this.data.getAction(event.ability.guid)
 			if (!action || !action.onGcd) { continue }
 
 			// eslint-disable-next-line default-case
@@ -102,9 +102,11 @@ export default class GlobalCooldown extends Module {
 		// - Sub-0.5s speedmod for BLM fast-casts and correct Instant/CasterTaxed flagging
 		// - Correct timestamp for last event before long gaps (ie: Kefka normal)
 		this.gcds.forEach((gcd) => {
-			console.log(this.parser.formatTimestamp(gcd.timestamp) + ' ' + getDataBy(ACTIONS, 'id', gcd.actionId).name + '[' + gcd.length +
-						'|' + gcd.normalizedLength + '] Speedmod[' + gcd.speedMod + ']' +
-						(gcd.isInstant ? ' Instant' : '') + (gcd.casterTaxed ? ' CasterTaxed' : ''))
+			const timestamp = this.parser.formatTimestamp(gcd.timestamp)
+			const action = this.data.getAction(gcd.actionId)
+			const instant = gcd.isInstant ? ' Instant' : ''
+			const taxed = gcd.casterTaxed ? ' CasterTaxed' : ''
+			console.log(`${timestamp} ${action.name}[${gcd.length}|${gcd.normalizedLength}] Speedmod[${gcd.speedMod}]${instant}${taxed}`)
 		})
 	}
 
@@ -113,21 +115,23 @@ export default class GlobalCooldown extends Module {
 
 		// Timeline output
 		// TODO: Look into adding items to groups? Maybe?
+
 		this.timeline.addGroup(new Group({
-			id: 'gcd',
+			id: this.gcdGroupId,
 			content: 'GCD',
 			order: -99,
 		}))
 
 		this.gcds.forEach(gcd => {
-			const action = getDataBy(ACTIONS, 'id', gcd.actionId)
+			const action = this.data.getAction(gcd.actionId)
 			if (!action) { return }
 			this.timeline.addItem(new Item({
 				type: 'background',
 				start: gcd.timestamp - startTime,
 				length: this._getGcdLength(gcd),
-				group: 'gcd',
-				content: <img src={action.icon} alt={action.name}/>,
+				title: action.name,
+				group: this.gcdGroupId,
+				content: <img src={action.icon} alt={action.name} title={action.name}/>,
 			}))
 		})
 
@@ -136,7 +140,7 @@ export default class GlobalCooldown extends Module {
 
 		this.statistics.add(new SimpleStatistic({
 			title: <Trans id="core.gcd.estimated-gcd">Estimated GCD</Trans>,
-			icon: ACTIONS.ATTACK.icon,
+			icon: this.data.actions.ATTACK.icon,
 			value: this.parser.formatDuration(estimate),
 			info: (
 				<Trans id="core.gcd.no-statistics">
@@ -152,7 +156,7 @@ export default class GlobalCooldown extends Module {
 			return
 		}
 
-		const action = getDataBy(ACTIONS, 'id', gcdInfo.event.ability.guid)
+		const action = this.data.getAction(gcdInfo.event.ability.guid)
 		if (!action || !action.id) { return }
 		let speedMod = this.speedmod.get(gcdInfo.event.timestamp)
 		let castTime = action.castTime
@@ -176,13 +180,19 @@ export default class GlobalCooldown extends Module {
 			isCasterTaxed = true
 		}
 
-		let normalizedGcd = gcdLength
-		if (!gcdInfo.isInstant) {
-			normalizedGcd = normalizedGcd * ((BASE_GCD / 1000) / castTime)
-		}
+		const correctedCooldown = action.gcdRecast != null
+			? action.gcdRecast
+			: action.cooldown
 
-		normalizedGcd *= (1 / speedMod)
-		normalizedGcd = Math.round(normalizedGcd)
+		const normaliseWith = gcdInfo.isInstant || castTime < correctedCooldown
+			? correctedCooldown
+			: castTime
+
+		const normalizedGcd = Math.round(
+			gcdLength
+			* ((BASE_GCD / 1000) / normaliseWith)
+			* (1 / speedMod),
+		)
 
 		this.gcds.push({
 			timestamp: gcdInfo.event.timestamp,
@@ -190,9 +200,7 @@ export default class GlobalCooldown extends Module {
 			normalizedLength: normalizedGcd,
 			speedMod,
 			castTime,
-			cooldown: action.gcdRecast != null
-				? action.gcdRecast
-				: action.cooldown,
+			cooldown: correctedCooldown,
 			casterTaxed: isCasterTaxed,
 			actionId: action.id,
 			isInstant: gcdInfo.isInstant,
@@ -225,7 +233,7 @@ export default class GlobalCooldown extends Module {
 			const duration = this._getGcdLength(gcd)
 			const downtime = this.downtime.getDowntime(
 				gcd.timestamp,
-				gcd.timestamp + duration
+				gcd.timestamp + duration,
 			)
 			return carry + duration - downtime
 		}, 0)

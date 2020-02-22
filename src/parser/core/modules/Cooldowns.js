@@ -1,17 +1,15 @@
-import React from 'react'
 import _ from 'lodash'
-
-import ACTIONS, {COOLDOWN_GROUPS} from 'data/ACTIONS'
 import Module from 'parser/core/Module'
 import {ItemGroup, Item} from './Timeline'
-import {getDataBy} from 'data'
+import React from 'react'
 
 // Track the cooldowns on actions and shit
 export default class Cooldowns extends Module {
 	static handle = 'cooldowns'
 	static dependencies = [
-		'timeline',
+		'data',
 		'downtime',
+		'timeline',
 	]
 
 	// Array used to sort cooldowns in the timeline. Elements should be either IDs for
@@ -20,12 +18,16 @@ export default class Cooldowns extends Module {
 	// Check the NIN and SMN modules for examples.
 	static cooldownOrder = []
 
+	_cooldownGroups = {}
+
 	_currentAction = null
 	_cooldowns = {}
 	_groups = {}
 
 	constructor(...args) {
 		super(...args)
+
+		this._cooldownGroups = _.groupBy(this.data.actions, 'cooldownGroup')
 
 		// Pre-build groups for actions explicitly set by subclasses
 		this._buildGroups(this.constructor.cooldownOrder)
@@ -44,7 +46,7 @@ export default class Cooldowns extends Module {
 
 			// If it's just an action id, build a group for it and stop
 			if (typeof data === 'number') {
-				const action = getDataBy(ACTIONS, 'id', data)
+				const action = this.data.getAction(data)
 				this._buildGroup({
 					id: data,
 					content: action && action.name,
@@ -77,7 +79,7 @@ export default class Cooldowns extends Module {
 	}
 
 	_buildGroup(opts) {
-		const group = new ItemGroup(opts)
+		const group = new ItemGroup({showNested: false, ...opts})
 		this.timeline.addGroup(group)
 		this._groups[opts.id] = group
 		return group
@@ -87,7 +89,7 @@ export default class Cooldowns extends Module {
 	// (though 99% of CD based abilities have no cast time)
 	// TODO: Should I be tracking pet CDs too? I mean, contagion/radiant are a thing.
 	_onBeginCast(event) {
-		const action = getDataBy(ACTIONS, 'id', event.ability.guid)
+		const action = this.data.getAction(event.ability.guid)
 		if (!action || action.cooldown == null) { return }
 
 		this._currentAction = action
@@ -99,7 +101,7 @@ export default class Cooldowns extends Module {
 	}
 
 	_onCast(event) {
-		const action = getDataBy(ACTIONS, 'id', event.ability.guid)
+		const action = this.data.getAction(event.ability.guid)
 		if (!action || action.cooldown == null) { return }
 
 		const finishingCast = this._currentAction && this._currentAction.id === action.id
@@ -131,7 +133,7 @@ export default class Cooldowns extends Module {
 			cd.current = null
 		}
 
-		const action = getDataBy(ACTIONS, 'id', actionId)
+		const action = this.data.getAction(actionId)
 
 		// If the action is on the GCD, GlobalCooldown will be managing its own group
 		if (!action || action.onGcd) {
@@ -148,16 +150,17 @@ export default class Cooldowns extends Module {
 		}
 
 		// Add CD info to the timeline
-		cd.history.forEach(use => {
-			if (!use.shared) {
-				this._groups[actionId].addItem(new Item({
-					type: 'background',
-					start: use.timestamp - this.parser.fight.start_time,
-					length: use.length,
-					content: <img src={action.icon} alt={action.name} />,
-				}))
-			}
-		})
+		cd.history
+			.forEach(use => {
+				if (!use.shared) {
+					this._groups[actionId].addItem(new Item({
+						type: 'background',
+						start: use.timestamp - this.parser.fight.start_time,
+						length: use.length,
+						content: <img src={action.icon} alt={action.name} />,
+					}))
+				}
+			})
 
 		return true
 	}
@@ -170,7 +173,7 @@ export default class Cooldowns extends Module {
 	}
 
 	startCooldownGroup(originActionId, cooldownGroup) {
-		const sharedCooldownActions = _.get(COOLDOWN_GROUPS, cooldownGroup, [])
+		const sharedCooldownActions = _.get(this._cooldownGroups, cooldownGroup, [])
 		sharedCooldownActions
 			.map(action => action.id)
 			.filter(id => id !== originActionId)
@@ -179,7 +182,7 @@ export default class Cooldowns extends Module {
 
 	startCooldown(actionId, sharedCooldown = false) {
 		// TODO: handle shared CDs
-		const action = getDataBy(ACTIONS, 'id', actionId)
+		const action = this.data.getAction(actionId)
 		if (!action) { return }
 
 		// Get the current cooldown status, falling back to a new cooldown
@@ -188,7 +191,13 @@ export default class Cooldowns extends Module {
 		// If there's a current object, move it into the history
 		// TODO: handle errors on CD overlap
 		if (cd.current) {
-			cd.history.push(cd.current)
+			const currentFightDuration = this.parser.currentTimestamp - this.parser.fight.start_time
+			if (cd.current.timestamp < this.parser.fight.start_time && cd.current.length > currentFightDuration) {
+				// Pre-pull usage, reset the cooldown to prevent overlap on timeline since we don't know exactly when cooldown was used pre-pull
+				this.resetCooldown(actionId)
+			} else {
+				cd.history.push(cd.current)
+			}
 		}
 
 		cd.current = {
@@ -287,7 +296,7 @@ export default class Cooldowns extends Module {
 
 		return cd.history.reduce(
 			(time, status) => time + this.getAdjustedTimeOnCooldown(status, currentTimestamp, extension),
-			cd.current? this.getAdjustedTimeOnCooldown(cd.current, currentTimestamp, extension) : 0
+			cd.current ? this.getAdjustedTimeOnCooldown(cd.current, currentTimestamp, extension) : 0,
 		)
 	}
 

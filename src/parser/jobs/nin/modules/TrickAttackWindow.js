@@ -18,15 +18,13 @@ export default class TrickAttackWindow extends Module {
 	_assassinateOutsideTa = 0
 	_armorCrushInTa = 0
 
-	_dwadCast = false
-
 	constructor(...args) {
 		super(...args)
-		this.addHook('cast', {by: 'player', abilityId: ACTIONS.DREAM_WITHIN_A_DREAM.id}, () => this._dwadCast = true)
 		this.addHook('combo', {by: 'player', abilityId: ACTIONS.ARMOR_CRUSH.id}, this._onArmorCrush)
-		this.addHook('damage', {by: 'player', abilityId: ACTIONS.DREAM_WITHIN_A_DREAM.id}, this._onDwadHit)
-		this.addHook('damage', {by: 'player', abilityId: ACTIONS.ASSASSINATE.id}, this._onAssassinate)
 		this.addHook('complete', this._onComplete)
+
+		this.addHook('normaliseddamage', {by: 'player', abilityId: ACTIONS.DREAM_WITHIN_A_DREAM.id}, this._onDwadHit)
+		this.addHook('normaliseddamage', {by: 'player', abilityId: ACTIONS.ASSASSINATE.id}, this._onAssassinate)
 	}
 
 	_targetHasVuln(targetId) {
@@ -41,12 +39,8 @@ export default class TrickAttackWindow extends Module {
 	}
 
 	_onDwadHit(event) {
-		if (this._dwadCast) {
-			// Reset the flag so we only check the first hit
-			this._dwadCast = false
-			if (!this._targetHasVuln(event.targetID)) {
-				this._dwadOutsideTa++
-			}
+		if (!this._targetHasVuln(event.targetID)) {
+			this._dwadOutsideTa++
 		}
 	}
 

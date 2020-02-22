@@ -55,6 +55,7 @@ export enum ActorType {
 	BLACK_MAGE = 'BlackMage',
 	SUMMONER = 'Summoner',
 	RED_MAGE = 'RedMage',
+	BLUE_MAGE = 'BlueMage',
 	LIMIT_BREAK = 'LimitBreak',
 
 	// Pet
@@ -138,6 +139,7 @@ interface EventActor extends BaseActor {
 
 export interface Event {
 	timestamp: number
+	// TODO: Remove symbol types, they're just unessecary complication to the event handling system
 	type: string | symbol
 
 	source?: EventActor
@@ -149,6 +151,9 @@ export interface Event {
 	targetInstance?: number
 	targetIsFriendly: boolean
 }
+
+// TODO: Remove once symbol types are removed
+const hasStringType = <T extends Event>(event: T): event is T & {type: string} => typeof event.type === 'string'
 
 export interface AbilityEvent extends Event {
 	ability: Ability
@@ -166,6 +171,9 @@ interface EffectEvent extends AbilityEvent {
 	sourceResources?: ActorResources
 	targetResources: ActorResources
 
+	packetID?: number
+	unpaired?: boolean
+
 	simulated?: boolean
 	actorPotencyRatio?: number
 	expectedCritRate?: number
@@ -176,17 +184,24 @@ interface EffectEvent extends AbilityEvent {
 
 export interface DeathEvent extends Event { type: 'death' }
 export interface CastEvent extends AbilityEvent { type: 'begincast' | 'cast' }
+
+export const isDamageEvent = (event: Event): event is DamageEvent => hasStringType(event) && event.type.includes('damage')
 export interface DamageEvent extends EffectEvent {
-	type: 'damage'
+	type: 'calculateddamage' | 'damage'
 	overkill?: number
 	absorbed: number
 	multistrike?: boolean
 	blocked?: number
 }
+
+export const isHealEvent = (event: Event): event is HealEvent => hasStringType(event) && event.type.includes('heal')
 export interface HealEvent extends EffectEvent {
-	type: 'heal'
+	type: 'calculatedheal' | 'heal'
 	overheal: number
 }
+
+export const isApplyBuffEvent = (event: Event): event is BuffEvent => hasStringType(event) && event.type ==='applybuff'
+export const isRemoveBuffEvent = (event: Event): event is BuffEvent => hasStringType(event) && event.type ==='removebuff'
 export interface BuffEvent extends AbilityEvent {
 	type: (
 		'applybuff' |
@@ -218,6 +233,9 @@ export enum ReportLanguage {
 	FRENCH = 'fr',
 	KOREAN = 'kr',
 	CHINESE = 'cn',
+
+	// ???
+	UNKNOWN = 'unknown',
 }
 
 // -----
@@ -272,7 +290,14 @@ export interface ReportEventsQuery {
 	translate?: boolean,
 }
 
-export interface ReportEventsResponse {
+interface CorrectReportEventsResponse {
 	events: Event[]
 	nextPageTimestamp?: number
 }
+
+// Yes, really.
+type MalformedReportEventsResponse = ''
+
+export type ReportEventsResponse =
+	| CorrectReportEventsResponse
+	| MalformedReportEventsResponse

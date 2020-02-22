@@ -12,10 +12,11 @@ import STATUSES from 'data/STATUSES'
 import {BuffEvent} from 'fflogs'
 import Module, {dependency} from 'parser/core/Module'
 import Combatants from 'parser/core/modules/Combatants'
-import {AoeEvent} from 'parser/core/modules/Combos'
+import {NormalisedDamageEvent} from 'parser/core/modules/NormalisedEvents'
 import Suggestions, {TieredSuggestion} from 'parser/core/modules/Suggestions'
 
 import {FINISHES, GAUGE_SEVERITY_TIERS, GaugeGraphEntry} from '../CommonData'
+import DISPLAY_ORDER from '../DISPLAY_ORDER'
 import styles from './DNCGauges.module.css'
 
 // Dances take more than a GCD to apply, during which time party members will be generating esprit for you
@@ -54,6 +55,7 @@ const SABER_DANCE_COST = 50
 export default class EspritGauge extends Module {
 	static handle = 'espritgauge'
 	static title = t('dnc.esprit-gauge.title')`Esprit Gauge`
+	static displayOrder = DISPLAY_ORDER.ESPRIT
 
 	@dependency private combatants!: Combatants
 	@dependency private suggestions!: Suggestions
@@ -66,15 +68,15 @@ export default class EspritGauge extends Module {
 	private improvisationStart = 0
 
 	protected init() {
-		this.addHook('aoedamage', {by: 'player'}, this.onDamage)
-		this.addHook('cast', {by: 'player', abilityId: ACTIONS.SABER_DANCE.id}, this.onConsumeEsprit)
-		this.addHook('applybuff', {by: 'player', abilityId: STATUSES.IMPROVISATION.id}, this.startImprov)
-		this.addHook('removebuff', {by: 'player', abilityId: STATUSES.IMPROVISATION.id}, this.endImprov)
-		this.addHook('death', {to: 'player'}, this.onDeath)
-		this.addHook('complete', this.onComplete)
+		this.addEventHook('normaliseddamage', {by: 'player'}, this.onDamage)
+		this.addEventHook('cast', {by: 'player', abilityId: ACTIONS.SABER_DANCE.id}, this.onConsumeEsprit)
+		this.addEventHook('applybuff', {by: 'player', abilityId: STATUSES.IMPROVISATION.id}, this.startImprov)
+		this.addEventHook('removebuff', {by: 'player', abilityId: STATUSES.IMPROVISATION.id}, this.endImprov)
+		this.addEventHook('death', {to: 'player'}, this.onDeath)
+		this.addEventHook('complete', this.onComplete)
 	}
 
-	private onDamage(event: AoeEvent) {
+	private onDamage(event: NormalisedDamageEvent) {
 		if (!ESPRIT_GENERATION_MULTIPLIERS[event.ability.guid] || !event.successfulHit) {
 			return
 		}

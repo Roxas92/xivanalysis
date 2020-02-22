@@ -10,6 +10,11 @@ import {ArcanaTracking, ArcanaSuggestions} from './ArcanaTracking'
 import Sect from './Sect'
 import CelestialIntersection from './CelestialIntersection'
 import Overheal from './Overheal'
+import Draw from './Draw'
+import CelestialOpposition from './CelestialOpposition'
+import DivinationDowntime from './DivinationDowntime'
+import Statuses from './Statuses'
+import Synastry from './Synastry'
 
 export default [
 	Cooldowns,
@@ -17,7 +22,7 @@ export default [
 	Lightspeed,
 	EarthlyStar,
 	LucidDreaming,
-	// Draw,
+	Draw,
 	ArcanaUndrawUsage,
 	Horoscope,
 	ArcanaTracking,
@@ -25,4 +30,8 @@ export default [
 	Sect,
 	CelestialIntersection,
 	Overheal,
+	DivinationDowntime,
+	CelestialOpposition,
+	Statuses,
+	Synastry,
 ]

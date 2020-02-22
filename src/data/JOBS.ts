@@ -99,7 +99,7 @@ const JOBS = {
 		name: t('game.job.gunbreaker')`Gunbreaker`,
 		logType: ActorType.GUNBREAKER,
 		icon: 'gnb',
-		colour: '#796d30', // TODO
+		colour: '#796d30',
 		role: ROLES.TANK.id,
 	},
 
@@ -175,7 +175,7 @@ const JOBS = {
 		name: t('game.job.dancer')`Dancer`,
 		logType: ActorType.DANCER,
 		icon: 'dnc',
-		colour: '#ff0000', // TODO
+		colour: '#e2b0af',
 		role: ROLES.PHYSICAL_RANGED.id,
 	},
 
@@ -199,6 +199,13 @@ const JOBS = {
 		logType: ActorType.RED_MAGE,
 		icon: 'rdm',
 		colour: '#e87b7b',
+		role: ROLES.MAGICAL_RANGED.id,
+	},
+	BLUE_MAGE: {
+		name: t('game.job.blue-mage')`Blue Mage`,
+		logType: ActorType.BLUE_MAGE,
+		icon: 'blu',
+		colour: '#3366ff',
 		role: ROLES.MAGICAL_RANGED.id,
 	},
 }

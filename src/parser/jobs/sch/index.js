@@ -32,16 +32,45 @@ export default new Meta({
 			</Message.Content>
 		</Message>
 	</>,
-	// supportedPatches: {
-	// 	from: '4.3',
-	// 	to: '4.5',
-	// },
+	supportedPatches: {
+		from: '5.0',
+		to: '5.2',
+	},
 	contributors: [
 		{user: CONTRIBUTORS.LIMA, role: ROLES.MAINTAINER},
 		{user: CONTRIBUTORS.SUSHIROU, role: ROLES.DEVELOPER},
 		{user: CONTRIBUTORS.NIV, role: ROLES.DEVELOPER},
+		{user: CONTRIBUTORS.NONO, role: ROLES.DEVELOPER},
 	],
 	changelog: [{
+		date: new Date('2020-02-18'),
+		Changes: () => <>Support for 5.2; happy raiding SCHs!</>,
+		contributors: [CONTRIBUTORS.NONO],
+	},
+	{
+		date: new Date('2019-10-29'),
+		Changes: () => <>Support for 5.1; additionally, only warn on faerie gauge overcap starting at 50</>,
+		contributors: [CONTRIBUTORS.NONO],
+	},
+	{
+		date: new Date('2019-09-19'),
+		Changes: () => <>Track interrupts; a big thanks to Tonto Draksbane and Yuni in the balance for help with this feature</>,
+		contributors: [CONTRIBUTORS.NONO],
+	},
+	{
+		date: new Date('2019-08-09'),
+		Changes: () => <>
+			Initial support for Shadowbringers:&nbsp;
+			<ul>
+				<li>Add gauge tracking</li>
+				<li>Track Chain Strategem use</li>
+				<li>Fix issue with Recitation creating negative Aetherflow counts</li>
+				<li>Add Energy Drain back as a valid Aetherflow consumer</li>
+			</ul>
+		</>,
+		contributors: [CONTRIBUTORS.NONO],
+	},
+	{
 		date: new Date('2019-07-12'),
 		Changes: () => <>
 			Initial changes for Shadowbringers:&nbsp;

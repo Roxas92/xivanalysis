@@ -1,11 +1,13 @@
 import {t} from '@lingui/macro'
 import {Trans} from '@lingui/react'
+import * as Sentry from '@sentry/browser'
 import {Message, Segment} from 'akkd'
 import NormalisedMessage from 'components/ui/NormalisedMessage'
-import ACTIONS from 'data/ACTIONS'
-import Module, {DISPLAY_MODE} from 'parser/core/Module'
+import {getReportPatch} from 'data/PATCHES'
+import Module, {dependency, DISPLAY_MODE} from 'parser/core/Module'
 import React from 'react'
 import {Table} from 'semantic-ui-react'
+import {Data} from './Data'
 import DISPLAY_ORDER from './DISPLAY_ORDER'
 
 interface Trigger {
@@ -17,7 +19,9 @@ const EXPECTED_ABILITY_EVENTS = [
 	'begincast',
 	'cast',
 	'damage',
+	'calculateddamage',
 	'heal',
+	'calculatedheal',
 	'applybuff',
 	'applydebuff',
 	'refreshbuff',
@@ -36,13 +40,15 @@ export default class BrokenLog extends Module {
 	static displayOrder = DISPLAY_ORDER.BROKEN_LOG
 	static displayMode = DISPLAY_MODE.RAW
 
+	@dependency private data!: Data
+
 	private triggers = new Map<string, Trigger>()
 
 	init() {
 		// Unknown actions are unparseable
 		this.addHook(
 			EXPECTED_ABILITY_EVENTS,
-			{by: 'player', abilityId: ACTIONS.UNKNOWN.id},
+			{by: 'player', abilityId: this.data.actions.UNKNOWN.id},
 			() => {
 				this.trigger(this, 'unknown action', (
 					<Trans id="core.broken-log.trigger.unknown-action">
@@ -61,7 +67,31 @@ export default class BrokenLog extends Module {
 	 */
 	trigger(module: Module, key: string, reason?: React.ReactNode) {
 		const constructor = (module.constructor as typeof Module)
-		this.triggers.set(`${constructor.handle}.${key}`, {
+		const {handle} = constructor
+		const triggerKey = `${handle}.${key}`
+
+		// If this is the first time this issue has been triggered, try and report it to Sentry
+		if (
+			!this.triggers.has(triggerKey) &&
+			!getReportPatch(this.parser.report).branch
+		) {
+			const job = this.parser.player.type
+
+			Sentry.withScope(scope => {
+				scope.setTags({
+					job,
+					module: handle,
+				})
+				scope.setExtras({
+					report: this.parser.report.code,
+					fight: this.parser.fight.id,
+					player: this.parser.player.id,
+				})
+				Sentry.captureMessage(`${job}.${triggerKey}`)
+			})
+		}
+
+		this.triggers.set(triggerKey, {
 			module: constructor,
 			reason,
 		})
@@ -92,7 +122,7 @@ export default class BrokenLog extends Module {
 				<Table.Body>
 					{Array.from(this.triggers.values()).map(({module, reason}) => (
 						<Table.Row>
-							<NormalisedMessage message={module.title} id={module.i18n_id}/>
+							<Table.Cell><NormalisedMessage message={module.title} id={module.i18n_id}/></Table.Cell>
 							<Table.Cell>{reason}</Table.Cell>
 						</Table.Row>
 					))}

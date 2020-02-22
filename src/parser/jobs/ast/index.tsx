@@ -38,12 +38,55 @@ export default new Meta({
 	</>,
 	supportedPatches: {
 		from: '5.05',
-		to: '5.05',
+		to: '5.08',
 	},
 	contributors: [
 		{user: CONTRIBUTORS.SUSHIROU, role: ROLES.MAINTAINER},
 	],
 	changelog: [
+		{
+			date: new Date('2019-10-08'),
+			Changes: () => <>
+				Fixed bug where the target of the card wouldn't display if that target was yourself.
+			</>,
+			contributors: [CONTRIBUTORS.SUSHIROU],
+		},
+		{
+			date: new Date('2019-09-25'),
+			Changes: () => <>
+				<ActionLink {...ACTIONS.SYNASTRY} /> now triggers a minor suggestion for single-target heals without it despite it being available.
+			</>,
+			contributors: [CONTRIBUTORS.SUSHIROU],
+		},
+		{
+
+			date: new Date('2019-09-01'),
+			Changes: () => <>
+				<ActionLink {...ACTIONS.CELESTIAL_OPPOSITION} /> now triggers a suggestion for dropping uses.
+				<ActionLink {...ACTIONS.DIVINATION} /> gets its own checklist tracker.
+			</>,
+			contributors: [CONTRIBUTORS.SUSHIROU],
+		},
+		{
+
+			date: new Date('2019-08-10'),
+			Changes: () => <>
+				<ActionLink {...ACTIONS.HOROSCOPE} /> reworked tracking for accuracy
+			</>,
+			contributors: [CONTRIBUTORS.SUSHIROU],
+		},
+		{
+
+			date: new Date('2019-08-08'),
+			Changes: () => <>
+				<strong>Get more of those cards</strong>:
+				<ul>
+					<li>Calculation for number of <ActionLink {...ACTIONS.PLAY} /> in a fight</li>
+					<li>Suggestions for not keeping (<ActionLink {...ACTIONS.DRAW} /><ActionLink {...ACTIONS.SLEEVE_DRAW} />) on cooldown</li>
+				</ul>
+			</>,
+			contributors: [CONTRIBUTORS.SUSHIROU],
+		},
 		{
 
 			date: new Date('2019-07-30'),
